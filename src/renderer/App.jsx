@@ -1,45 +1,92 @@
+import { useEffect, useRef, useState } from 'react';
 import { MemoryRouter as Router, Routes, Route } from 'react-router-dom';
+import vegaEmbed from 'vega-embed';
 import icon from '../../assets/icon.svg';
 import './App.css';
 
-function Hello() {
+const plot = {
+  config: { view: { continuousWidth: 300, continuousHeight: 300 } },
+  data: { name: 'data-aa3182f56440339a609f07b5a9bd1428' },
+  mark: { type: 'point' },
+  encoding: {
+    x: { field: 'timestamps', title: 'Timestamp', type: 'quantitative' },
+    y: {
+      field: 'echo_distances',
+      title: 'Echo Distance',
+      type: 'quantitative',
+    },
+  },
+  params: [
+    {
+      name: 'param_11',
+      select: { type: 'interval', encodings: ['x', 'y'] },
+      bind: 'scales',
+    },
+  ],
+  $schema: 'https://vega.github.io/schema/vega-lite/v5.14.1.json',
+  datasets: {
+    'data-aa3182f56440339a609f07b5a9bd1428': [
+      { echo_distances: 120, timestamps: 1 },
+      { echo_distances: 150, timestamps: 2 },
+      { echo_distances: 160, timestamps: 3 },
+    ],
+  },
+};
+
+function Main() {
+  const plotDivRef = useRef();
+
+  const [spec, setSpec] = useState(null);
+
+  useEffect(() => {
+    window.electron.ipcRenderer.on('echo_plot', (data) => {
+      console.log('recvd data:', data);
+
+      setSpec(JSON.parse(data));
+
+      // if (plotDivRef.current) {
+      //   // Embed the visualization in the container
+      //   vegaEmbed(plotDivRef.current, JSON.parse(data), { actions: false });
+      // }
+    });
+  });
+
+  useEffect(() => {
+    if (!spec) return;
+    if (!plotDivRef.current) return;
+
+    const renderSpec = () =>
+      vegaEmbed(plotDivRef.current, spec, { actions: false });
+
+    renderSpec();
+
+    // const resizeObserver = new ResizeObserver(renderSpec);
+    // resizeObserver.observe(plotDivRef.current);
+    // return () => {
+    //   resizeObserver.disconnect();
+    // };
+  }, [spec]);
+
   return (
-    <div className="bg-gray-300">
-      <div className="Hello">
-        <img width="200" alt="icon" src={icon} />
-        <div>
-          <h1 className="bg-gray-500 text-center text-white">
-            Hi Tailwind has been integrated.
-          </h1>
+    <div className="h-[calc(100vh-74px)] prose flex flex-col">
+      <div className="shadow-sm">
+        <div className="p-2 mb-2 ml-4 flex items-center justify-left w-full space-x-10">
+          <div className="text-2xl">Ussper Visualization</div>
+          <a
+            href="#"
+            className="hover:bg-gray-500 hover:bg-opacity-20 px-3 py-2 rounded-md"
+          >
+            Findings
+          </a>
+          <a
+            href="#"
+            className="hover:bg-gray-500 hover:bg-opacity-20 px-3 py-2 rounded-md"
+          >
+            Fuzzer Stats
+          </a>
         </div>
       </div>
-      <h1>electron-react-boilerplate</h1>
-      <div className="Hello">
-        <a
-          href="https://electron-react-boilerplate.js.org/"
-          target="_blank"
-          rel="noreferrer"
-        >
-          <button type="button">
-            <span role="img" aria-label="books">
-              📚
-            </span>
-            Read our docs
-          </button>
-        </a>
-        <a
-          href="https://github.com/sponsors/electron-react-boilerplate"
-          target="_blank"
-          rel="noreferrer"
-        >
-          <button type="button">
-            <span role="img" aria-label="folded hands">
-              🙏
-            </span>
-            Donate
-          </button>
-        </a>
-      </div>
+      <div className="flex-1" ref={plotDivRef}></div>
     </div>
   );
 }
@@ -48,7 +95,7 @@ export default function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Hello />} />
+        <Route path="/" element={<Main />} />
       </Routes>
     </Router>
   );

@@ -14,6 +14,9 @@ import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
+import { createServer } from 'http';
+const express = require('express');
+const socketIo = require('socket.io');
 
 class AppUpdater {
   constructor() {
@@ -124,10 +127,36 @@ app.on('window-all-closed', () => {
   }
 });
 
+function createSockerIOServer() {
+    const expressApp = express();
+    const server = createServer(expressApp);
+    let io = socketIo(server);
+
+    io.on('connection', (socket) => {
+        console.log('New client connected');
+
+
+        socket.on('echo_plot', (data) => {
+            console.log(data)
+            mainWindow?.webContents.send('echo_plot', data);
+            console.log('end', data)
+        })
+
+        socket.on('disconnect', () => {
+            console.log('Client disconnected');
+        })
+    })
+
+    server.listen(1234, () => {
+        console.log('Server is running on port 1234.')
+    })
+}
+
 app
   .whenReady()
   .then(() => {
     createWindow();
+    createSockerIOServer();
     app.on('activate', () => {
       // On macOS it's common to re-create a window in the app when the
       // dock icon is clicked and there are no other windows open.
