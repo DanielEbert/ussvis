@@ -33,6 +33,28 @@ const plot = {
   },
 };
 
+const Header = () => {
+  return (
+    <div className="shadow-sm bg-white">
+      <div className="p-2 m-1 ml-8 flex items-center justify-left w-full space-x-10">
+        <div className="text-2xl font-semibold">Ussper Visualization</div>
+        <a
+          href="#"
+          className="hover:bg-gray-500 hover:bg-opacity-20 px-3 py-2 rounded-md"
+        >
+          TODO1
+        </a>
+        <a
+          href="#"
+          className="hover:bg-gray-500 hover:bg-opacity-20 px-3 py-2 rounded-md"
+        >
+          TODO2
+        </a>
+      </div>
+    </div>
+  );
+};
+
 function Main() {
   const plotDivRef = useRef();
 
@@ -40,14 +62,7 @@ function Main() {
 
   useEffect(() => {
     window.electron.ipcRenderer.on('echo_plot', (data) => {
-      console.log('recvd data:', data);
-
       setSpec(JSON.parse(data));
-
-      // if (plotDivRef.current) {
-      //   // Embed the visualization in the container
-      //   vegaEmbed(plotDivRef.current, JSON.parse(data), { actions: false });
-      // }
     });
   });
 
@@ -68,25 +83,19 @@ function Main() {
   }, [spec]);
 
   return (
-    <div className="h-[calc(100vh-74px)] prose flex flex-col">
-      <div className="shadow-sm">
-        <div className="p-2 mb-2 ml-4 flex items-center justify-left w-full space-x-10">
-          <div className="text-2xl">Ussper Visualization</div>
-          <a
-            href="#"
-            className="hover:bg-gray-500 hover:bg-opacity-20 px-3 py-2 rounded-md"
-          >
-            Findings
-          </a>
-          <a
-            href="#"
-            className="hover:bg-gray-500 hover:bg-opacity-20 px-3 py-2 rounded-md"
-          >
-            Fuzzer Stats
-          </a>
+    <div className="h-[calc(100vh-74px)] prose flex flex-col bg-gray-50">
+      <Header />
+      <div className="flex-1">
+        <div className="flex flex-col space-y-5 m-5">
+          <div className="bg-white h-[32rem] p-1 rounded-lg">
+            <div className="h-full w-full bg-red-500" ref={plotDivRef} />
+          </div>
+          <div className="flex">
+            <div className="flex-1 bg-white aspect-square">A</div>
+            <div className="flex-1 bg-white aspect-square">B</div>
+          </div>
         </div>
       </div>
-      <div className="flex-1" ref={plotDivRef}></div>
     </div>
   );
 }
