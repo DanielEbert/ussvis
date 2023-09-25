@@ -36,7 +36,7 @@ const plot = {
 const Header = () => {
   return (
     <div className="shadow-sm bg-white">
-      <div className="p-2 m-1 ml-8 flex items-center justify-left w-full space-x-10">
+      <div className="p-2 m-1 ml-8 flex items-center justify-left space-x-10">
         <div className="text-2xl font-semibold">Ussper Visualization</div>
         <a
           href="#"
@@ -86,13 +86,17 @@ function Main() {
     <div className="h-[calc(100vh-74px)] prose flex flex-col bg-gray-50">
       <Header />
       <div className="flex-1">
-        <div className="flex flex-col space-y-5 m-5">
-          <div className="bg-white h-[32rem] p-1 rounded-lg">
-            <div className="h-full w-full bg-red-500" ref={plotDivRef} />
+        <div className="flex flex-col space-y-3 m-5">
+          <div className="bg-white h-[32rem] p-1 rounded-lg border border-gray-200">
+            <div className="h-full w-full" ref={plotDivRef} />
           </div>
-          <div className="flex">
-            <div className="flex-1 bg-white aspect-square">A</div>
-            <div className="flex-1 bg-white aspect-square">B</div>
+          <div className="flex space-x-3">
+            <div className="flex-1 bg-white aspect-square border border-gray-200">
+              A
+            </div>
+            <div className="flex-1 bg-white aspect-square border border-gray-200">
+              B
+            </div>
           </div>
         </div>
       </div>
