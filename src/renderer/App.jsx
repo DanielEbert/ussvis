@@ -70,16 +70,11 @@ function Main() {
     if (!spec) return;
     if (!plotDivRef.current) return;
 
+    // TODO: color sender_id doesnt work, thats reserved for trace id
     const renderSpec = () =>
       vegaEmbed(plotDivRef.current, spec, { actions: false });
 
     renderSpec();
-
-    // const resizeObserver = new ResizeObserver(renderSpec);
-    // resizeObserver.observe(plotDivRef.current);
-    // return () => {
-    //   resizeObserver.disconnect();
-    // };
   }, [spec]);
 
   return (
