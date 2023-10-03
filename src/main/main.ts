@@ -128,28 +128,27 @@ app.on('window-all-closed', () => {
 });
 
 function createSockerIOServer() {
-    const expressApp = express();
-    const server = createServer(expressApp);
-    let io = socketIo(server);
+  const expressApp = express();
+  const server = createServer(expressApp);
+  let io = socketIo(server);
 
-    io.on('connection', (socket) => {
-        console.log('New client connected');
+  io.on('connection', (socket) => {
+    console.log('New client connected');
 
+    socket.on('echo_plot', (data) => {
+      console.log(data);
+      mainWindow?.webContents.send('echo_plot', data);
+      console.log('end', data);
+    });
 
-        socket.on('echo_plot', (data) => {
-            console.log(data)
-            mainWindow?.webContents.send('echo_plot', data);
-            console.log('end', data)
-        })
+    socket.on('disconnect', () => {
+      console.log('Client disconnected');
+    });
+  });
 
-        socket.on('disconnect', () => {
-            console.log('Client disconnected');
-        })
-    })
-
-    server.listen(1234, () => {
-        console.log('Server is running on port 1234.')
-    })
+  server.listen(1234, () => {
+    console.log('Server is running on port 1234.');
+  });
 }
 
 app

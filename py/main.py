@@ -20,3 +20,5 @@ sio.connect('http://localhost:1234')
 
 
 sio.emit('echo_plot', plot)
+
+print('send')

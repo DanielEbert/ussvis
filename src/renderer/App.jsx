@@ -83,24 +83,31 @@ function Main() {
   }, [spec]);
 
   return (
-    <div className="h-[calc(100vh-74px)] prose flex flex-col bg-gray-50">
+    <>
       <Header />
-      <div className="flex-1">
-        <div className="flex flex-col space-y-3 m-5">
-          <div className="bg-white h-[32rem] p-1 rounded-lg border border-gray-200">
-            <div className="h-full w-full" ref={plotDivRef} />
+      <div className="flex flex-col space-y-3 m-5">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col h-[32rem] px-4 py-2">
+          <div className="flex justify-between items-center">
+            <div>
+              <div className="text-2xl font-semibold">
+                Echo Distance over Time
+              </div>
+              <div className="text-gray-500 mb-2">16:48:52</div>
+            </div>
+            <div>Y</div>
           </div>
-          <div className="flex space-x-3">
-            <div className="flex-1 bg-white aspect-square border border-gray-200">
-              A
-            </div>
-            <div className="flex-1 bg-white aspect-square border border-gray-200">
-              B
-            </div>
+          <div className=" flex-1" ref={plotDivRef} />
+        </div>
+        <div className="flex space-x-3">
+          <div className="flex-1 bg-white aspect-square border border-gray-200">
+            A
+          </div>
+          <div className="flex-1 bg-white aspect-square border border-gray-200">
+            B
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
