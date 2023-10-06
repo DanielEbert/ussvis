@@ -101,7 +101,9 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.11.2",
+    "react-select": "^5.7.7",
     "socket.io": "^4.7.2",
+    "socket.io-client": "^4.7.2",
     "vega-embed": "^6.22.2"
   },
   "devDependencies": {

@@ -1,95 +1,123 @@
 import { useEffect, useRef, useState } from 'react';
 import { MemoryRouter as Router, Routes, Route } from 'react-router-dom';
 import vegaEmbed from 'vega-embed';
+import Select from 'react-select';
 import icon from '../../assets/icon.svg';
 import './App.css';
+import { socket } from './socket';
 
-const plot = {
-  config: { view: { continuousWidth: 300, continuousHeight: 300 } },
-  data: { name: 'data-aa3182f56440339a609f07b5a9bd1428' },
-  mark: { type: 'point' },
-  encoding: {
-    x: { field: 'timestamps', title: 'Timestamp', type: 'quantitative' },
-    y: {
-      field: 'echo_distances',
-      title: 'Echo Distance',
-      type: 'quantitative',
-    },
-  },
-  params: [
-    {
-      name: 'param_11',
-      select: { type: 'interval', encodings: ['x', 'y'] },
-      bind: 'scales',
-    },
-  ],
-  $schema: 'https://vega.github.io/schema/vega-lite/v5.14.1.json',
-  datasets: {
-    'data-aa3182f56440339a609f07b5a9bd1428': [
-      { echo_distances: 120, timestamps: 1 },
-      { echo_distances: 150, timestamps: 2 },
-      { echo_distances: 160, timestamps: 3 },
-    ],
-  },
-};
+// TODO: later get this via event with callback
+const topics = [
+  { value: 'alpha', label: 'alpha', title: 'alphaHeader' },
+  { value: 'beta', label: 'beta', title: 'betaHeader' },
+  { value: 'gamma', label: 'gamma', title: 'gammaHeader' },
+];
 
-const Header = () => {
+const Header = ({ isConnected }) => {
   return (
     <div className="shadow-sm bg-white">
-      <div className="p-2 m-1 ml-8 flex items-center justify-left space-x-10">
-        <div className="text-2xl font-semibold">Ussper Visualization</div>
-        <a
-          href="#"
-          className="hover:bg-gray-500 hover:bg-opacity-20 px-3 py-2 rounded-md"
-        >
-          TODO1
-        </a>
-        <a
-          href="#"
-          className="hover:bg-gray-500 hover:bg-opacity-20 px-3 py-2 rounded-md"
-        >
-          TODO2
-        </a>
+      <div className="p-2 m-1 ml-8 flex justify-between">
+        <div className="flex space-x-10 items-center">
+          <div className="text-2xl font-semibold">Ussper Visualization</div>
+          <a
+            href="#"
+            className="hover:bg-gray-500 hover:bg-opacity-20 px-3 py-2 rounded-md"
+          >
+            TODO1
+          </a>
+          <a
+            href="#"
+            className="hover:bg-gray-500 hover:bg-opacity-20 px-3 py-2 rounded-md"
+          >
+            TODO2
+          </a>
+        </div>
+        <div className="mr-8 self-center">
+          {isConnected ? 'Connected' : 'Not Connected'}
+        </div>
       </div>
     </div>
   );
 };
 
 function Main() {
+  const [isConnected, setIsConnected] = useState(socket.connected);
+
   const plotDivRef = useRef();
 
   const [spec, setSpec] = useState(null);
 
+  const [topic, setTopic] = useState(null);
+
+  const [title, setTitle] = useState('Select Plot');
+
   useEffect(() => {
-    window.electron.ipcRenderer.on('echo_plot', (data) => {
-      setSpec(JSON.parse(data));
-    });
-  });
+    function onConnect() {
+      console.log(isConnected);
+      setIsConnected(true);
+    }
+
+    function onDisconnect() {
+      console.log(isConnected);
+      setIsConnected(false);
+    }
+
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+
+    return () => {
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (topic == null) return;
+
+    function onTopicEvent(event) {
+      if (event == null) return;
+
+      setSpec(JSON.parse(event));
+    }
+
+    console.log('register for ' + topic);
+    socket.on(topic, onTopicEvent);
+
+    return () => {
+      socket.off(topic, onTopicEvent);
+    };
+  }, [topic]);
 
   useEffect(() => {
     if (!spec) return;
     if (!plotDivRef.current) return;
 
-    // TODO: color sender_id doesnt work, thats reserved for trace id
-    const renderSpec = () =>
-      vegaEmbed(plotDivRef.current, spec, { actions: false });
-
-    renderSpec();
+    vegaEmbed(plotDivRef.current, spec, { actions: false });
   }, [spec]);
 
   return (
     <>
-      <Header />
+      <Header isConnected={isConnected} />
       <div className="flex flex-col space-y-3 m-5">
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col h-[32rem] px-4 py-2">
           <div className="flex justify-between items-center">
             <div>
-              <div className="text-2xl font-semibold">
-                Echo Distance over Time
-              </div>
+              <div className="text-2xl font-semibold">{title}</div>
               <div className="text-gray-500 mb-2">16:48:52</div>
             </div>
-            <div>Y</div>
+            <div className="w-1/5">
+              <Select
+                options={topics}
+                onChange={(value) => {
+                  if (plotDivRef.current) {
+                    plotDivRef.current.innerHTML = '';
+                  }
+                  setSpec(null);
+                  setTopic(value['value']);
+                  setTitle(value['title']);
+                }}
+              />
+            </div>
           </div>
           <div className=" flex-1" ref={plotDivRef} />
         </div>
