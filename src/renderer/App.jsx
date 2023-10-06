@@ -5,6 +5,9 @@ import Select from 'react-select';
 import icon from '../../assets/icon.svg';
 import './App.css';
 import { socket } from './socket';
+import { BsWifiOff } from 'react-icons/bs';
+import { AiOutlineWifi } from 'react-icons/ai';
+import { ImCancelCircle } from 'react-icons/im';
 
 // TODO: later get this via event with callback
 const topics = [
@@ -23,34 +26,35 @@ const getCurrentTimestamp = () => {
   return `${hour}:${minute}:${second}`;
 };
 
-const Header = ({ isConnected }) => {
+const Header = ({ isConnected, addPlotContainer, addSideBySideLayout }) => {
   return (
     <div className="shadow-sm bg-white">
       <div className="p-2 m-1 ml-8 flex justify-between">
         <div className="flex space-x-10 items-center">
           <div className="text-2xl font-semibold">Ussper Visualization</div>
-          <a
-            href="#"
+          <div
             className="hover:bg-gray-500 hover:bg-opacity-20 px-3 py-2 rounded-md"
+            onClick={addPlotContainer}
           >
             Add ☐
-          </a>
-          <a
-            href="#"
+          </div>
+          <div
             className="hover:bg-gray-500 hover:bg-opacity-20 px-3 py-2 rounded-md"
+            onClick={addSideBySideLayout}
           >
             Add ☐☐
-          </a>
+          </div>
         </div>
-        <div className="mr-8 self-center">
-          {isConnected ? 'Connected' : 'Not Connected'}
+        <div className="mr-8 items-center flex space-x-2">
+          <div>{isConnected ? 'Connected' : 'Not Connected'}</div>
+          {isConnected ? <AiOutlineWifi /> : <BsWifiOff />}
         </div>
       </div>
     </div>
   );
 };
 
-const PlotContainer = () => {
+const PlotContainer = ({ id, onDelete }) => {
   const plotDivRef = useRef();
 
   const [spec, setSpec] = useState(null);
@@ -82,25 +86,36 @@ const PlotContainer = () => {
 
     vegaEmbed(plotDivRef.current, spec, { actions: false });
   }, [spec]);
+
   return (
-    <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col h-[32rem] px-4 py-2">
+    <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col h-[32rem] pl-4 pr-2 py-2">
       <div className="flex justify-between items-center">
-        <div>
+        <div className="flex-1">
           <div className="text-2xl font-semibold">{title}</div>
           <div className="text-gray-500 mb-2">{lastReceiveTimestamp}</div>
         </div>
-        <div className="w-1/5">
-          <Select
-            options={topics}
-            onChange={(value) => {
-              if (plotDivRef.current) {
-                plotDivRef.current.innerHTML = '';
-              }
-              setSpec(null);
-              setTopic(value['value']);
-              setTitle(value['title']);
-            }}
-          />
+        <div className="w-1/3">
+          <div className="flex items-center space-x-2">
+            <div className="flex-1">
+              <Select
+                options={topics}
+                onChange={(value) => {
+                  if (plotDivRef.current) {
+                    plotDivRef.current.innerHTML = '';
+                  }
+                  setSpec(null);
+                  setTopic(value['value']);
+                  setTitle(value['title']);
+                }}
+              />
+            </div>
+            <div
+              className="hover:bg-gray-500 hover:bg-opacity-20 p-2 rounded-md"
+              onClick={() => onDelete(id)}
+            >
+              <ImCancelCircle size={20} />
+            </div>
+          </div>
         </div>
       </div>
       <div className=" flex-1" ref={plotDivRef} />
@@ -108,8 +123,72 @@ const PlotContainer = () => {
   );
 };
 
+const SideBySideLayout = ({ id, onDelete }) => {
+  return (
+    <div className="flex space-x-3">
+      <div className="flex-1 bg-white border border-gray-200">
+        <PlotContainer id={id} onDelete={onDelete} />
+      </div>
+      <div className="flex-1 bg-white border border-gray-200">
+        <PlotContainer id={id} onDelete={onDelete} />
+      </div>
+    </div>
+  );
+};
+
 function Main() {
   const [isConnected, setIsConnected] = useState(socket.connected);
+
+  const initialId = 3;
+  const [currentId, setCurrentId] = useState(initialId);
+
+  const handleDelete = (idToDelete) => {
+    setLayouts((prevLayouts) =>
+      prevLayouts.filter((layout) => layout.props.id !== idToDelete)
+    );
+  };
+
+  const addPlotContainer = () => {
+    setCurrentId((prevId) => prevId + 1);
+
+    const newPlot = (
+      <PlotContainer key={currentId} id={currentId} onDelete={handleDelete} />
+    );
+
+    setLayouts((prevLayouts) => [...prevLayouts, newPlot]);
+  };
+
+  const addSideBySideLayout = () => {
+    setCurrentId((prevId) => prevId + 1);
+
+    const newSideBySideLayout = (
+      <SideBySideLayout
+        key={currentId}
+        id={currentId}
+        onDelete={handleDelete}
+      />
+    );
+
+    setLayouts((prevLayouts) => [...prevLayouts, newSideBySideLayout]);
+  };
+
+  const [layouts, setLayouts] = useState([
+    <PlotContainer
+      key={currentId - 3}
+      id={currentId - 3}
+      onDelete={handleDelete}
+    />,
+    <SideBySideLayout
+      key={currentId - 2}
+      id={currentId - 2}
+      onDelete={handleDelete}
+    />,
+    <PlotContainer
+      key={currentId - 1}
+      id={currentId - 1}
+      onDelete={handleDelete}
+    />,
+  ]);
 
   useEffect(() => {
     function onConnect() {
@@ -133,19 +212,12 @@ function Main() {
 
   return (
     <>
-      <Header isConnected={isConnected} />
-      <div className="flex flex-col space-y-3 m-5">
-        <PlotContainer />
-        <PlotContainer />
-        <div className="flex space-x-3">
-          <div className="flex-1 bg-white aspect-square border border-gray-200">
-            A
-          </div>
-          <div className="flex-1 bg-white aspect-square border border-gray-200">
-            B
-          </div>
-        </div>
-      </div>
+      <Header
+        isConnected={isConnected}
+        addPlotContainer={addPlotContainer}
+        addSideBySideLayout={addSideBySideLayout}
+      />
+      <div className="flex flex-col space-y-3 m-5">{...layouts}</div>
     </>
   );
 }
