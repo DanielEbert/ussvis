@@ -13,6 +13,16 @@ const topics = [
   { value: 'gamma', label: 'gamma', title: 'gammaHeader' },
 ];
 
+const getCurrentTimestamp = () => {
+  const now = new Date();
+
+  const hour = String(now.getHours()).padStart(2, '0');
+  const minute = String(now.getUTCMinutes()).padStart(2, '0');
+  const second = String(now.getSeconds()).padStart(2, '0');
+
+  return `${hour}:${minute}:${second}`;
+};
+
 const Header = ({ isConnected }) => {
   return (
     <div className="shadow-sm bg-white">
@@ -23,13 +33,13 @@ const Header = ({ isConnected }) => {
             href="#"
             className="hover:bg-gray-500 hover:bg-opacity-20 px-3 py-2 rounded-md"
           >
-            TODO1
+            Add ☐
           </a>
           <a
             href="#"
             className="hover:bg-gray-500 hover:bg-opacity-20 px-3 py-2 rounded-md"
           >
-            TODO2
+            Add ☐☐
           </a>
         </div>
         <div className="mr-8 self-center">
@@ -40,16 +50,66 @@ const Header = ({ isConnected }) => {
   );
 };
 
-function Main() {
-  const [isConnected, setIsConnected] = useState(socket.connected);
-
+const PlotContainer = () => {
   const plotDivRef = useRef();
 
   const [spec, setSpec] = useState(null);
-
   const [topic, setTopic] = useState(null);
-
   const [title, setTitle] = useState('Select Plot');
+  const [lastReceiveTimestamp, setLastReceiveTimestamp] = useState('');
+
+  useEffect(() => {
+    if (topic == null) return;
+
+    function onTopicEvent(event) {
+      if (event == null) return;
+
+      setSpec(JSON.parse(event));
+      setLastReceiveTimestamp(getCurrentTimestamp());
+    }
+
+    console.log('register for ' + topic);
+    socket.on(topic, onTopicEvent);
+
+    return () => {
+      socket.off(topic, onTopicEvent);
+    };
+  }, [topic]);
+
+  useEffect(() => {
+    if (!spec) return;
+    if (!plotDivRef.current) return;
+
+    vegaEmbed(plotDivRef.current, spec, { actions: false });
+  }, [spec]);
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col h-[32rem] px-4 py-2">
+      <div className="flex justify-between items-center">
+        <div>
+          <div className="text-2xl font-semibold">{title}</div>
+          <div className="text-gray-500 mb-2">{lastReceiveTimestamp}</div>
+        </div>
+        <div className="w-1/5">
+          <Select
+            options={topics}
+            onChange={(value) => {
+              if (plotDivRef.current) {
+                plotDivRef.current.innerHTML = '';
+              }
+              setSpec(null);
+              setTopic(value['value']);
+              setTitle(value['title']);
+            }}
+          />
+        </div>
+      </div>
+      <div className=" flex-1" ref={plotDivRef} />
+    </div>
+  );
+};
+
+function Main() {
+  const [isConnected, setIsConnected] = useState(socket.connected);
 
   useEffect(() => {
     function onConnect() {
@@ -71,56 +131,12 @@ function Main() {
     };
   }, []);
 
-  useEffect(() => {
-    if (topic == null) return;
-
-    function onTopicEvent(event) {
-      if (event == null) return;
-
-      setSpec(JSON.parse(event));
-    }
-
-    console.log('register for ' + topic);
-    socket.on(topic, onTopicEvent);
-
-    return () => {
-      socket.off(topic, onTopicEvent);
-    };
-  }, [topic]);
-
-  useEffect(() => {
-    if (!spec) return;
-    if (!plotDivRef.current) return;
-
-    vegaEmbed(plotDivRef.current, spec, { actions: false });
-  }, [spec]);
-
   return (
     <>
       <Header isConnected={isConnected} />
       <div className="flex flex-col space-y-3 m-5">
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col h-[32rem] px-4 py-2">
-          <div className="flex justify-between items-center">
-            <div>
-              <div className="text-2xl font-semibold">{title}</div>
-              <div className="text-gray-500 mb-2">16:48:52</div>
-            </div>
-            <div className="w-1/5">
-              <Select
-                options={topics}
-                onChange={(value) => {
-                  if (plotDivRef.current) {
-                    plotDivRef.current.innerHTML = '';
-                  }
-                  setSpec(null);
-                  setTopic(value['value']);
-                  setTitle(value['title']);
-                }}
-              />
-            </div>
-          </div>
-          <div className=" flex-1" ref={plotDivRef} />
-        </div>
+        <PlotContainer />
+        <PlotContainer />
         <div className="flex space-x-3">
           <div className="flex-1 bg-white aspect-square border border-gray-200">
             A
