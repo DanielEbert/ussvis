@@ -126,10 +126,10 @@ const PlotContainer = ({ id, onDelete }) => {
 const SideBySideLayout = ({ id, onDelete }) => {
   return (
     <div className="flex space-x-3">
-      <div className="flex-1 bg-white border border-gray-200">
+      <div className="flex-1">
         <PlotContainer id={id} onDelete={onDelete} />
       </div>
-      <div className="flex-1 bg-white border border-gray-200">
+      <div className="flex-1">
         <PlotContainer id={id} onDelete={onDelete} />
       </div>
     </div>
@@ -192,12 +192,10 @@ function Main() {
 
   useEffect(() => {
     function onConnect() {
-      console.log(isConnected);
       setIsConnected(true);
     }
 
     function onDisconnect() {
-      console.log(isConnected);
       setIsConnected(false);
     }
 

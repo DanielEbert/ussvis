@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import socketio
 import eventlet
+import time
 
 sio = socketio.Server(cors_allowed_origins='*')
 app = socketio.WSGIApp(sio)
@@ -25,13 +26,6 @@ def disconnected(sid):
 def update_config(sid, data):
     print(f'update_config: {data}')
 
-
-# with open(sys.argv[1]) as f:
-#     plot = f.read()
-
-# sio.connect('http://localhost:1234')
-
-# sio.emit('echo_plot', plot)
 
 def emit_every_second() -> None:
     while True:
