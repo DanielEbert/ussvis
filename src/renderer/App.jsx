@@ -8,6 +8,7 @@ import { socket } from './socket';
 import { BsWifiOff } from 'react-icons/bs';
 import { AiOutlineWifi } from 'react-icons/ai';
 import { ImCancelCircle } from 'react-icons/im';
+import { v4 as uuid } from 'uuid';
 
 // TODO: later get this via event with callback
 const topics = [
@@ -26,7 +27,7 @@ const getCurrentTimestamp = () => {
   return `${hour}:${minute}:${second}`;
 };
 
-const Header = ({ isConnected, addPlotContainer, addSideBySideLayout }) => {
+const Header = ({ isConnected, addSinglePlot, addSideBySidePlots }) => {
   return (
     <div className="shadow-sm bg-white">
       <div className="p-2 m-1 ml-8 flex justify-between">
@@ -34,13 +35,13 @@ const Header = ({ isConnected, addPlotContainer, addSideBySideLayout }) => {
           <div className="text-2xl font-semibold">Ussper Visualization</div>
           <div
             className="hover:bg-gray-500 hover:bg-opacity-20 px-3 py-2 rounded-md"
-            onClick={addPlotContainer}
+            onClick={addSinglePlot}
           >
             Add ☐
           </div>
           <div
             className="hover:bg-gray-500 hover:bg-opacity-20 px-3 py-2 rounded-md"
-            onClick={addSideBySideLayout}
+            onClick={addSideBySidePlots}
           >
             Add ☐☐
           </div>
@@ -54,38 +55,26 @@ const Header = ({ isConnected, addPlotContainer, addSideBySideLayout }) => {
   );
 };
 
-const PlotContainer = ({ id, onDelete }) => {
+const PlotContainer = ({
+  id,
+  topic,
+  setTopic,
+  topicIndex,
+  onDelete,
+  spec,
+  lastReceiveTimestamp,
+}) => {
   const plotDivRef = useRef();
 
-  const [spec, setSpec] = useState(null);
-  const [topic, setTopic] = useState(null);
   const [title, setTitle] = useState('Select Plot');
-  const [lastReceiveTimestamp, setLastReceiveTimestamp] = useState('');
 
-  useEffect(() => {
-    if (topic == null) return;
-
-    function onTopicEvent(event) {
-      if (event == null) return;
-
-      setSpec(JSON.parse(event));
-      setLastReceiveTimestamp(getCurrentTimestamp());
-    }
-
-    console.log('register for ' + topic);
-    socket.on(topic, onTopicEvent);
-
-    return () => {
-      socket.off(topic, onTopicEvent);
-    };
-  }, [topic]);
-
-  useEffect(() => {
-    if (!spec) return;
-    if (!plotDivRef.current) return;
-
+  if (spec && plotDivRef.current) {
     vegaEmbed(plotDivRef.current, spec, { actions: false });
-  }, [spec]);
+  }
+
+  if (!plotDivRef.current) {
+    console.log('No ref set.');
+  }
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col h-[32rem] pl-4 pr-2 py-2">
@@ -103,8 +92,7 @@ const PlotContainer = ({ id, onDelete }) => {
                   if (plotDivRef.current) {
                     plotDivRef.current.innerHTML = '';
                   }
-                  setSpec(null);
-                  setTopic(value['value']);
+                  setTopic(id, value['value'], topicIndex);
                   setTitle(value['title']);
                 }}
               />
@@ -123,72 +111,107 @@ const PlotContainer = ({ id, onDelete }) => {
   );
 };
 
-const SideBySideLayout = ({ id, onDelete }) => {
-  return (
-    <div className="flex space-x-3">
-      <div className="flex-1">
-        <PlotContainer id={id} onDelete={onDelete} />
-      </div>
-      <div className="flex-1">
-        <PlotContainer id={id} onDelete={onDelete} />
-      </div>
-    </div>
-  );
-};
-
 function Main() {
   const [isConnected, setIsConnected] = useState(socket.connected);
 
-  const initialId = 3;
-  const [currentId, setCurrentId] = useState(initialId);
-
-  const handleDelete = (idToDelete) => {
-    setLayouts((prevLayouts) =>
-      prevLayouts.filter((layout) => layout.props.id !== idToDelete)
-    );
-  };
-
-  const addPlotContainer = () => {
-    setCurrentId((prevId) => prevId + 1);
-
-    const newPlot = (
-      <PlotContainer key={currentId} id={currentId} onDelete={handleDelete} />
-    );
-
-    setLayouts((prevLayouts) => [...prevLayouts, newPlot]);
-  };
-
-  const addSideBySideLayout = () => {
-    setCurrentId((prevId) => prevId + 1);
-
-    const newSideBySideLayout = (
-      <SideBySideLayout
-        key={currentId}
-        id={currentId}
-        onDelete={handleDelete}
-      />
-    );
-
-    setLayouts((prevLayouts) => [...prevLayouts, newSideBySideLayout]);
-  };
-
-  const [layouts, setLayouts] = useState([
-    <PlotContainer
-      key={currentId - 3}
-      id={currentId - 3}
-      onDelete={handleDelete}
-    />,
-    <SideBySideLayout
-      key={currentId - 2}
-      id={currentId - 2}
-      onDelete={handleDelete}
-    />,
-    <PlotContainer
-      key={currentId - 1}
-      id={currentId - 1}
-      onDelete={handleDelete}
-    />,
+  const [plots, setPlots] = useState([
+    {
+      id: uuid(),
+      layoutType: 'single',
+      topics: [''],
+      plotSpecs: [null],
+      lastReceiveTimestamp: [null],
+    },
+    {
+      id: uuid(),
+      layoutType: 'sideBySide',
+      topics: ['', ''],
+      plotSpecs: [null, null],
+      lastReceiveTimestamp: [null, null],
+    },
+    {
+      id: uuid(),
+      layoutType: 'single',
+      topics: [''],
+      plotSpecs: [null],
+      lastReceiveTimestamp: [null],
+    },
   ]);
+
+  useEffect(() => {
+    function onEvent(topicName, ...args) {
+      setPlots((prevPlots) =>
+        prevPlots.map((plot) => {
+          for (var index = 0; index < plot.topics.length; index++) {
+            const topic = plot.topics[index];
+            if (topicName == topic) {
+              const updatedPlotSpecs = [...plot.plotSpecs];
+              updatedPlotSpecs[index] = JSON.parse(args[0]);
+
+              const updatedLastReceiveTimestamp = [
+                ...plot.lastReceiveTimestamp,
+              ];
+              updatedLastReceiveTimestamp[index] = getCurrentTimestamp();
+
+              plot = {
+                ...plot,
+                plotSpecs: updatedPlotSpecs,
+                lastReceiveTimestamp: updatedLastReceiveTimestamp,
+              };
+            }
+          }
+          return plot;
+        })
+      );
+    }
+
+    socket.onAny(onEvent);
+
+    return () => {
+      socket.offAny(onEvent);
+    };
+  }, []);
+
+  const setTopic = (id, newTitle, index = 0) => {
+    setPlots((prevPlots) =>
+      prevPlots.map((plot) => {
+        if (plot.id == id) {
+          const updatedTopics = [...plot.topics];
+          updatedTopics[index] = newTitle;
+          return { ...plot, topics: updatedTopics };
+        }
+        return plot;
+      })
+    );
+  };
+
+  const deletePlot = (idToDelete) => {
+    setPlots((prevPlots) => prevPlots.filter((plot) => plot.id !== idToDelete));
+  };
+
+  const addSinglePlot = () => {
+    setPlots((prevPlots) => [
+      ...prevPlots,
+      {
+        id: uuid(),
+        layoutType: 'single',
+        topics: [''],
+        plotSpecs: [null],
+      },
+    ]);
+  };
+
+  const addSideBySidePlots = () => {
+    setPlots((prevPlots) => [
+      ...prevPlots,
+      {
+        id: uuid(),
+        layoutType: 'sideBySide',
+        topics: ['', ''],
+        plotSpecs: [null, null],
+      },
+    ]);
+  };
 
   useEffect(() => {
     function onConnect() {
@@ -212,10 +235,52 @@ function Main() {
     <>
       <Header
         isConnected={isConnected}
-        addPlotContainer={addPlotContainer}
-        addSideBySideLayout={addSideBySideLayout}
+        addSinglePlot={addSinglePlot}
+        addSideBySidePlots={addSideBySidePlots}
       />
-      <div className="flex flex-col space-y-3 m-5">{...layouts}</div>
+      <div className="flex flex-col space-y-3 m-5">
+        {plots.map((plot) =>
+          plot.layoutType == 'single' ? (
+            <PlotContainer
+              key={plot.id}
+              id={plot.id}
+              topic={plot.topics[0]}
+              setTopic={setTopic}
+              topicIndex={0}
+              onDelete={deletePlot}
+              spec={plot.plotSpecs[0]}
+              lastReceiveTimestamp={plot.lastReceiveTimestamp[0]}
+            />
+          ) : (
+            <div className="flex space-x-3">
+              <div className="flex-1">
+                <PlotContainer
+                  key={plot.id}
+                  id={plot.id}
+                  topic={plot.topics[0]}
+                  setTopic={setTopic}
+                  topicIndex={0}
+                  onDelete={deletePlot}
+                  spec={plot.plotSpecs[0]}
+                  lastReceiveTimestamp={plot.lastReceiveTimestamp[0]}
+                />
+              </div>
+              <div className="flex-1">
+                <PlotContainer
+                  key={plot.id}
+                  id={plot.id}
+                  topic={plot.topics[1]}
+                  setTopic={setTopic}
+                  topicIndex={1}
+                  onDelete={deletePlot}
+                  spec={plot.plotSpecs[1]}
+                  lastReceiveTimestamp={plot.lastReceiveTimestamp[1]}
+                />
+              </div>
+            </div>
+          )
+        )}
+      </div>
     </>
   );
 }
