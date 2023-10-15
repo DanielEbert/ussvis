@@ -9,6 +9,7 @@ import { BsWifiOff } from 'react-icons/bs';
 import { AiOutlineWifi } from 'react-icons/ai';
 import { ImCancelCircle } from 'react-icons/im';
 import { v4 as uuid } from 'uuid';
+import create from 'zustand';
 
 // TODO: later get this via event with callback
 const topics = [
@@ -16,6 +17,60 @@ const topics = [
   { value: 'beta', label: 'beta', title: 'betaHeader' },
   { value: 'gamma', label: 'gamma', title: 'gammaHeader' },
 ];
+
+const usePlotStore = create((set) => ({
+  plots: [
+    {
+      id: uuid(),
+      topic: '',
+      plotSpec: null,
+      lastReceiveTimestamp: null,
+      width: 'half',
+    },
+    {
+      id: uuid(),
+      topic: '',
+      plotSpec: null,
+      lastReceiveTimestamp: null,
+      width: 'half',
+    },
+    {
+      id: uuid(),
+      topic: '',
+      plotSpec: null,
+      lastReceiveTimestamp: null,
+      width: 'full',
+    },
+  ],
+  addPlot: (plot) => set((state) => ({ plots: [...state.plots, plot] })),
+  updatePlotSpec: (topic, spec) =>
+    set((state) => {
+      const updatedTimestamp = getCurrentTimestamp();
+
+      const updatedPlots = state.plots.map((plot) =>
+        plot.topic === topic
+          ? { ...plot, plotSpec: spec, lastReceiveTimestamp: updatedTimestamp }
+          : plot
+      );
+      return { plots: updatedPlots };
+    }),
+  updateTopic: (id, topic) => {
+    set((state) => {
+      const updatedPlots = state.plots.map((plot) =>
+        plot.id === id
+          ? {
+              ...plot,
+              topic: topic,
+              plotSpec: null,
+              lastReceiveTimestamp: null,
+            }
+          : plot
+      );
+
+      return { plots: updatedPlots };
+    });
+  },
+}));
 
 const getCurrentTimestamp = () => {
   const now = new Date();
@@ -55,6 +110,22 @@ const Header = ({ isConnected, addSinglePlot, addSideBySidePlots }) => {
   );
 };
 
+const VegaPlot = ({ spec, className }) => {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    if (spec) {
+      console.log('render');
+      vegaEmbed(containerRef.current, spec, { actions: false });
+    } else {
+      containerRef.current.innerHTML = '';
+    }
+  }, [spec]);
+
+  return <div className={className} ref={containerRef} />;
+};
+
 const PlotContainer = ({
   id,
   topic,
@@ -62,22 +133,18 @@ const PlotContainer = ({
   topicIndex,
   onDelete,
   spec,
+  width,
   lastReceiveTimestamp,
 }) => {
-  const plotDivRef = useRef();
-
   const [title, setTitle] = useState('Select Plot');
-
-  if (spec && plotDivRef.current) {
-    vegaEmbed(plotDivRef.current, spec, { actions: false });
-  }
-
-  if (!plotDivRef.current) {
-    console.log('No ref set.');
-  }
+  if (width === 'full') console.log(width);
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col h-[32rem] pl-4 pr-2 py-2">
+    <div
+      className={`bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col h-[32rem] pl-4 pr-2 py-2 ${
+        width === 'full' ? 'col-span-2' : ''
+      }`}
+    >
       <div className="flex justify-between items-center">
         <div className="flex-1">
           <div className="text-2xl font-semibold">{title}</div>
@@ -89,9 +156,10 @@ const PlotContainer = ({
               <Select
                 options={topics}
                 onChange={(value) => {
-                  if (plotDivRef.current) {
-                    plotDivRef.current.innerHTML = '';
-                  }
+                  // TODO: here we would need to reset spec
+                  // if (plotDivRef.current) {
+                  //   plotDivRef.current.innerHTML = '';
+                  // }
                   setTopic(id, value['value'], topicIndex);
                   setTitle(value['title']);
                 }}
@@ -106,63 +174,44 @@ const PlotContainer = ({
           </div>
         </div>
       </div>
-      <div className=" flex-1" ref={plotDivRef} />
+      <VegaPlot spec={spec} className={'flex-1'} />
+      {/*<div className=" flex-1" ref={plotDivRef} />*/}
     </div>
   );
 };
 
 function Main() {
   const [isConnected, setIsConnected] = useState(socket.connected);
-
-  const [plots, setPlots] = useState([
-    {
-      id: uuid(),
-      layoutType: 'single',
-      topics: [''],
-      plotSpecs: [null],
-      lastReceiveTimestamp: [null],
-    },
-    {
-      id: uuid(),
-      layoutType: 'sideBySide',
-      topics: ['', ''],
-      plotSpecs: [null, null],
-      lastReceiveTimestamp: [null, null],
-    },
-    {
-      id: uuid(),
-      layoutType: 'single',
-      topics: [''],
-      plotSpecs: [null],
-      lastReceiveTimestamp: [null],
-    },
-  ]);
+  const updatePlotSpec = usePlotStore((state) => state.updatePlotSpec);
+  const updateTopic = usePlotStore((state) => state.updateTopic);
+  const plots = usePlotStore((state) => state.plots);
 
   useEffect(() => {
     function onEvent(topicName, ...args) {
-      setPlots((prevPlots) =>
-        prevPlots.map((plot) => {
-          for (var index = 0; index < plot.topics.length; index++) {
-            const topic = plot.topics[index];
-            if (topicName == topic) {
-              const updatedPlotSpecs = [...plot.plotSpecs];
-              updatedPlotSpecs[index] = JSON.parse(args[0]);
+      updatePlotSpec(topicName, JSON.parse(args[0]));
+      // setPlots((prevPlots) =>
+      //   prevPlots.map((plot) => {
+      //     for (var index = 0; index < plot.topics.length; index++) {
+      //       const topic = plot.topics[index];
+      //       if (topicName == topic) {
+      //         const updatedPlotSpecs = [...plot.plotSpecs];
+      //         updatedPlotSpecs[index] = JSON.parse(args[0]);
 
-              const updatedLastReceiveTimestamp = [
-                ...plot.lastReceiveTimestamp,
-              ];
-              updatedLastReceiveTimestamp[index] = getCurrentTimestamp();
+      //         const updatedLastReceiveTimestamp = [
+      //           ...plot.lastReceiveTimestamp,
+      //         ];
+      //         updatedLastReceiveTimestamp[index] = getCurrentTimestamp();
 
-              plot = {
-                ...plot,
-                plotSpecs: updatedPlotSpecs,
-                lastReceiveTimestamp: updatedLastReceiveTimestamp,
-              };
-            }
-          }
-          return plot;
-        })
-      );
+      //         plot = {
+      //           ...plot,
+      //           plotSpecs: updatedPlotSpecs,
+      //           lastReceiveTimestamp: updatedLastReceiveTimestamp,
+      //         };
+      //       }
+      //     }
+      //     return plot;
+      //   })
+      // );
     }
 
     socket.onAny(onEvent);
@@ -173,44 +222,45 @@ function Main() {
   }, []);
 
   const setTopic = (id, newTitle, index = 0) => {
-    setPlots((prevPlots) =>
-      prevPlots.map((plot) => {
-        if (plot.id == id) {
-          const updatedTopics = [...plot.topics];
-          updatedTopics[index] = newTitle;
-          return { ...plot, topics: updatedTopics };
-        }
-        return plot;
-      })
-    );
+    updateTopic(id, newTitle);
+    // setPlots((prevPlots) =>
+    //   prevPlots.map((plot) => {
+    //     if (plot.id == id) {
+    //       const updatedTopics = [...plot.topics];
+    //       updatedTopics[index] = newTitle;
+    //       return { ...plot, topics: updatedTopics };
+    //     }
+    //     return plot;
+    //   })
+    // );
   };
 
   const deletePlot = (idToDelete) => {
-    setPlots((prevPlots) => prevPlots.filter((plot) => plot.id !== idToDelete));
+    // setPlots((prevPlots) => prevPlots.filter((plot) => plot.id !== idToDelete));
   };
 
   const addSinglePlot = () => {
-    setPlots((prevPlots) => [
-      ...prevPlots,
-      {
-        id: uuid(),
-        layoutType: 'single',
-        topics: [''],
-        plotSpecs: [null],
-      },
-    ]);
+    // setPlots((prevPlots) => [
+    //   ...prevPlots,
+    //   {
+    //     id: uuid(),
+    //     layoutType: 'single',
+    //     topics: [''],
+    //     plotSpecs: [null],
+    //   },
+    // ]);
   };
 
   const addSideBySidePlots = () => {
-    setPlots((prevPlots) => [
-      ...prevPlots,
-      {
-        id: uuid(),
-        layoutType: 'sideBySide',
-        topics: ['', ''],
-        plotSpecs: [null, null],
-      },
-    ]);
+    // setPlots((prevPlots) => [
+    //   ...prevPlots,
+    //   {
+    //     id: uuid(),
+    //     layoutType: 'sideBySide',
+    //     topics: ['', ''],
+    //     plotSpecs: [null, null],
+    //   },
+    // ]);
   };
 
   useEffect(() => {
@@ -238,48 +288,20 @@ function Main() {
         addSinglePlot={addSinglePlot}
         addSideBySidePlots={addSideBySidePlots}
       />
-      <div className="flex flex-col space-y-3 m-5">
-        {plots.map((plot) =>
-          plot.layoutType == 'single' ? (
-            <PlotContainer
-              key={plot.id}
-              id={plot.id}
-              topic={plot.topics[0]}
-              setTopic={setTopic}
-              topicIndex={0}
-              onDelete={deletePlot}
-              spec={plot.plotSpecs[0]}
-              lastReceiveTimestamp={plot.lastReceiveTimestamp[0]}
-            />
-          ) : (
-            <div className="flex space-x-3">
-              <div className="flex-1">
-                <PlotContainer
-                  key={plot.id}
-                  id={plot.id}
-                  topic={plot.topics[0]}
-                  setTopic={setTopic}
-                  topicIndex={0}
-                  onDelete={deletePlot}
-                  spec={plot.plotSpecs[0]}
-                  lastReceiveTimestamp={plot.lastReceiveTimestamp[0]}
-                />
-              </div>
-              <div className="flex-1">
-                <PlotContainer
-                  key={plot.id}
-                  id={plot.id}
-                  topic={plot.topics[1]}
-                  setTopic={setTopic}
-                  topicIndex={1}
-                  onDelete={deletePlot}
-                  spec={plot.plotSpecs[1]}
-                  lastReceiveTimestamp={plot.lastReceiveTimestamp[1]}
-                />
-              </div>
-            </div>
-          )
-        )}
+      <div className="grid grid-cols-2 gap-4">
+        {plots.map((plot) => (
+          <PlotContainer
+            key={plot.id}
+            id={plot.id}
+            topic={plot.topic}
+            setTopic={setTopic}
+            topicIndex={0}
+            onDelete={deletePlot}
+            spec={plot.plotSpec}
+            lastReceiveTimestamp={plot.lastReceiveTimestamp}
+            width={plot.width}
+          />
+        ))}
       </div>
     </>
   );

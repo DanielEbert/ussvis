@@ -28,10 +28,16 @@ def update_config(sid, data):
 
 
 def emit_every_second() -> None:
+    i = 1
     while True:
+        i += 1
         print('emitting event')
         with open('plot.json') as f:
-            sio.emit('beta', f.read())
+            plot = f.read()
+        if i % 2 == 0:
+            sio.emit('beta', plot)
+        else:
+            sio.emit('gamma', plot)
         eventlet.sleep(1)
 
 
